@@ -4,14 +4,16 @@ require("../db/conn");
 const User = require("../model/schema");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const Authenticate = require("../middleware/authentication");
 
+let token;
 router.get('/', (req, res) => {
     res.send("Hello from the Router Server");
 });
 
 // Register Route
 router.post('/register', async (req, res) => {
-    const { name, email, phone, work, password, cpassword } = req.body;
+    const { name, phone, work, password, cpassword } = req.body;
 
     if (!name || !email || !phone || !work || !password || !cpassword) {
         return res.status(422).json({ message: "Please fill all the fields" });
@@ -59,7 +61,7 @@ router.post('/signin', async (req, res) => {
             });
 
             if (match) {
-                res.json({ message: "User signin successfully" });
+                res.status(201).json({ message: "User signin successfully" });
             }
             else {
                 res.status(400).json({ error: "Sigin error" });
@@ -71,6 +73,51 @@ router.post('/signin', async (req, res) => {
     } catch (err) {
         console.log(err);
     };
+});
+
+// About Us Page
+router.get("/about", Authenticate, (req, res) => {
+    console.log("About");
+    res.send(req.rootUser);
+});
+
+// Getting User Data for Contact and Home Page
+router.get("/getdata", Authenticate, (req, res) => {
+    console.log("Contact and Home");
+    res.send(req.rootUser);
+});
+
+// Contact Page
+router.post('/contact', Authenticate, async (req, res) => {
+    try {
+
+        const { name, email, phone, message } = req.body;
+        if (!name || !email || !phone || !message) {
+            return res.json({ error: "Please fill the contact form" })
+        }
+        const userContact = await User.findOne({ _id: req.userID });
+
+        if (userContact) {
+
+            const userMessage = await userContact.addMessage(name, email, phone, message);
+            await userContact.save();
+            res.status(201).json({ message: "Contact Added Successfully" });
+
+        }
+
+
+
+    } catch (e) {
+        console.log(e);
+    }
+
+});
+
+// Logout Page
+router.get("/logout", Authenticate, (req, res) => {
+    console.log("User Logout");
+    res.clearCookie("jwtoken", { path: "/" });
+    res.status(200).send("User Logout");
 });
 
 module.exports = router;
